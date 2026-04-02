@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Calculus Readiness Self-Assessment</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    max-width: 750px;
+    margin: auto;
+    padding: 20px;
+}
+
+h2 { text-align:center; }
+
+.question {
+    margin: 10px 0;
+}
+
+.question label {
+    display: inline-block;
+    margin-right: 15px;   /* horizontal spacing */
+    margin-top: 6px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.question input[type="radio"] {
+    transform: scale(1.2);   /* slightly larger click target */
+    margin-right: 6px;
+}
+
+button {
+    font-size: 16px;
+    padding: 12px 24px;
+    margin-top: 15px;
+}
+
+.result {
+    margin-top: 25px;
+    padding: 15px;
+    background:#f4f6f8;
+    border-radius:8px;
+}
+.missed {
+    background-color: #ffeaea;
+    border-left: 4px solid #d33;
+    padding-left: 8px;
+    border-radius: 6px;
+}
+
+.correct {
+    background-color: #e8f6ea;
+    border-left: 4px solid #2e8b57;
+    padding-left: 8px;
+    border-radius: 6px;
+}
+.badge {
+    display: inline-block;
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 16px;
+    margin: 10px 0;
+}
+
+.badge.good {
+    background: #e6f6ea;
+    color: #1e7e34;
+}
+
+.badge.mid {
+    background: #fff4e0;
+    color: #b26a00;
+}
+
+.badge.low {
+    background: #fdeaea;
+    color: #b00020;
+}
+
+.good { color:green; }
+.mid { color:#cc8800; }
+.low { color:red; }
+</style>
+</head>
+
+<body>
+
+<h2>Calculus Readiness Self-Assessment</h2>
+
+<p>
+Enter your answers from the paper test, then press <b>Submit</b>
+to see your readiness result.
+</p>
+
+<div id="quiz"></div>
+
+<button id="submitBtn" onclick="gradeQuiz()">Submit</button>
+<!-- <button onclick="fillCorrect()">Fill Correct Answers (Test)</button> -->
+<!-- <button onclick="simulateStudent()">Simulate Random Student</button> -->
+
+<div id="result" class="result"></div>
+
+<script>
+
+// =============================
+// ANSWER KEY (edit if needed)
+// =============================
+const answers = [
+"B","D","B","D","C",
+"C","D","B","D","B",
+"C","D","A","D","C",
+"A","D","A","D","D"
+];
+
+// =============================
+// TOPIC MAPPING (from your PDF)
+// =============================
+const topicMap = {
+"Exponent Laws: Negative and fractional exponents, power rules.": [1,2,3],
+"Rational Expressions: Simplifying complex/compound fractions.": [4],
+"Factoring: Difference of cubes, grouping, and common factors.": [5],
+"Linear Equations: Solving linear equations.": [6],
+"Functions: Identifying the domain and range of functions.": [7],
+"Functions: Composition of functions.": [8],
+"Functions: Finding inverses of functions.": [9],
+"Analytic Geometry: Slope and line equations.": [10],
+"Equation Solving: Solving quadratic equations.": [11],
+"Equation Solving: Solving rational equations.": [12],
+"Exponential Functions: Exponential functions, laws of exponents.": [13],
+"Logarithms: Log laws (product/quotient).": [14],
+"Logarithms: Solving log equations.": [15],
+"Trig Foundations: Basic definitions of trigonometric functions.": [16],
+"Trig Foundations: Radian/Degree conversion.": [17],
+"Trig Foundations: Domains of trigonometric functions.": [18],
+"Right Triangle Trig: Triangle trigonometry and the Pythagorean Theorem.": [19],
+"Unit Circle Trig: Evaluating exact values for trig functions without a calculator.": [20]
+};
+
+// =============================
+// BUILD ANSWER SHEET
+// =============================
+const quizDiv = document.getElementById("quiz");
+
+for(let i=0;i<answers.length;i++){
+
+    let div=document.createElement("div");
+    div.className="question";
+
+    let html=`<b>Q${i+1}</b>: `;
+
+    ["A","B","C","D"].forEach(c=>{
+        html+=`
+        <label>
+        <input type="radio" name="q${i}" value="${c}">
+        ${c}
+        </label>
+        `;
+    });
+
+    div.innerHTML=html;
+    quizDiv.appendChild(div);
+}
+
+// =============================
+// FIND TOPIC FOR A QUESTION
+// =============================
+function getTopicForQuestion(qNumber){
+    for(const topic in topicMap){
+        if(topicMap[topic].includes(qNumber)){
+            return topic;
+        }
+    }
+    return "General review";
+}
+
+// =============================
+// ANONYMOUS SESSION + ATTEMPT
+// =============================
+
+// persistent anonymous ID
+let sessionID =
+  localStorage.getItem("AM_CalcReady_session");
+
+if(!sessionID){
+    sessionID =
+      Math.random().toString(36).substring(2)
+      + Date.now().toString(36);
+
+    localStorage.setItem(
+      "AM_CalcReady_session",
+      sessionID
+    );
+}
+
+// attempt counter
+let attempt =
+  Number(localStorage.getItem("AM_attempt") || 0) + 1;
+
+localStorage.setItem("AM_attempt", attempt);
+
+// =============================
+// GRADING
+// =============================
+function gradeQuiz(){
+    // for(let i=0;i<answers.length;i++){
+    //   let sel=document.querySelector(`input[name="q${i}"]:checked`);
+    //   if(!sel){
+    //     alert("Please answer all questions before submitting.");
+    //     return;
+    //   }
+    // }
+
+  // remove old highlights
+  document.querySelectorAll(".question").forEach(q=>{
+    q.classList.remove("missed","correct");
+  });
+
+  const submitBtn = document.getElementById("submitBtn");
+  // prevent double-click spam briefly
+  submitBtn.disabled = true;
+
+    let score=0;
+    let missed=[];
+    let correctness = [];
+
+    for(let i=0;i<answers.length;i++){
+        let sel=document.querySelector(
+            `input[name="q${i}"]:checked`
+        );
+
+        let questionDiv =
+          document.querySelectorAll(".question")[i];
+
+        if(sel && sel.value===answers[i]){
+          score++;
+          correctness.push(1);
+          questionDiv.classList.add("correct");
+        }
+        else{
+          missed.push(i+1);
+          correctness.push(0);
+          questionDiv.classList.add("missed");
+        }
+    }
+    missed.sort((a,b)=>a-b);
+
+    // ===== build review list by question =====
+    let reviewList = [];
+
+    missed.forEach(q=>{
+      let topic = getTopicForQuestion(q);
+      reviewList.push(`Q${q} - ${topic}`);
+    });
+
+    // ===== readiness band =====
+    let percent=score/answers.length;
+    let level, css;
+
+    if(percent>=0.8){
+        level="You appear READY for Calculus I.";
+        css="good";
+    }
+    else if(percent>=0.6){
+        level="You are CLOSE to ready. Some review recommended.";
+        css="mid";
+    }
+    else{
+        level="Significant review recommended before Calculus.";
+        css="low";
+    }
+
+    // ===== display result =====
+    document.getElementById("result").innerHTML=`
+      <h3>Score: ${score} / ${answers.length}</h3>
+
+      <div class="badge ${css}">
+          ${level}
+      </div>
+
+      <p><b>Questions to review:</b>
+      ${missed.length ? missed.join(", ") : "None 🎉"}</p>
+
+      <p><b>Suggested topics to review:</b><br>
+      ${reviewList.join("<br>")}
+      </p>
+  `;
+  sendResults(score, percent, correctness);
+  // allow retry after grading finishes
+  setTimeout(() => {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Submit Retry";
+  }, 600);
+}
+
+// =============================
+// AUTO-FILL CORRECT ANSWERS
+// (Testing only)
+// =============================
+function fillCorrect(){
+
+    for(let i=0;i<answers.length;i++){
+
+        let correct = answers[i];
+
+        let radio = document.querySelector(
+            `input[name="q${i}"][value="${correct}"]`
+        );
+
+        if(radio){
+            radio.checked = true;
+        }
+    }
+}
+
+// =============================
+// RANDOM STUDENT SIMULATION
+// (Testing only)
+// =============================
+function simulateStudent(){
+
+    const choices = ["A","B","C","D"];
+
+    for(let i=0;i<answers.length;i++){
+
+        // choose random option
+        let randomChoice =
+            choices[Math.floor(Math.random()*choices.length)];
+
+        let radio = document.querySelector(
+            `input[name="q${i}"][value="${randomChoice}"]`
+        );
+
+        if(radio){
+            radio.checked = true;
+        }
+    }
+
+    // automatically grade
+    gradeQuiz();
+}
+
+// =============================
+// SEND RESULTS TO GOOGLE SHEET
+// =============================
+function sendResults(score, percent, correctness){
+
+fetch("PASTE_YOUR_SCRIPT_URL_HERE", {
+    method: "POST",
+    body: JSON.stringify({
+        session: sessionID,
+        attempt: attempt,
+        score: score,
+        percent: percent,
+        responses: correctness
+    })
+})
+.then(res => console.log("Saved"))
+.catch(err => console.log("Error:", err));
+
+}
+</script>
+
+</body>
+</html>
