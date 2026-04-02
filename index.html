@@ -347,7 +347,7 @@ function simulateStudent(){
 // =============================
 function sendResults(score, percent, correctness){
 
-fetch("PASTE_YOUR_SCRIPT_URL_HERE", {
+fetch("https://script.google.com/macros/s/AKfycbxf7nsvZ1bGpWvrAko51QaiG75Bwhe8WwbumB95SR514qnBp7DCbx-kLG5KLnfhyTdIXQ/exec", {
     method: "POST",
     body: JSON.stringify({
         session: sessionID,
